@@ -6,8 +6,15 @@
     {
       "name": "passage_of_the_day",
       "version": "0.1.0",
-      "dependencies": [],
+      "dependencies": [
+        "path"
+      ],
       "devDependencies": []
+    },
+    {
+      "name": "path",
+      "version": "1.9.1",
+      "dependencies": []
     }
   ],
   "configVersion": 1

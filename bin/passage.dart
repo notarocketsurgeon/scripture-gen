@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-
+import 'package:path/path.dart' as p;
 import 'package:passage_of_the_day/bible.dart';
 import 'package:passage_of_the_day/config.dart';
 import 'package:passage_of_the_day/download.dart';
@@ -18,6 +18,12 @@ void main(List<String> args) async {
   var initSb = false;
   var listCurated = false;
   var noDownload = false;
+
+  // New Batch Export Params
+  var isBatchExport = false;
+  var exportDir = '';
+  var outputToTerminal = true;
+  var batchSize = 1; // Total number of batches to run
 
   var i = 0;
   while (i < args.length) {
@@ -42,6 +48,14 @@ void main(List<String> args) async {
       listCurated = true;
     } else if (a == '--no-download') {
       noDownload = true;
+    } else if (a == '--batchexport') {
+      isBatchExport = true;
+    } else if (a == '--export-dir' && i + 1 < args.length) {
+      exportDir = args[++i];
+    } else if (a == '--output-terminal' && i + 1 < args.length) {
+      outputToTerminal = (args[++i] == 'true');
+    } else if (a == '--batch-size' && i + 1 < args.length) {
+      batchSize = int.tryParse(args[++i]) ?? 1;
     } else if (a == '-h' || a == '--help') {
       printUsage();
       return;
@@ -52,7 +66,6 @@ void main(List<String> args) async {
   final sandboxPath = findSandbox(sandboxName);
   final sandbox = Sandbox(sandboxPath);
 
-  // Config defaults, overridden by CLI flags
   if (!args.contains('--line')) {
     lineByLine = sandbox.get('line_by_line', false) as bool;
   }
@@ -71,6 +84,14 @@ void main(List<String> args) async {
 
   if (listCurated) {
     listCuratedPassages(sandbox);
+    return;
+  }
+
+  // Handle Batch Export logic
+  if (isBatchExport) {
+    await runBatchExport(
+        sandbox, outputFormat, lineByLine, numbered, showNotes, 
+        noDownload, exportDir, outputToTerminal, batchSize);
     return;
   }
 
@@ -97,6 +118,47 @@ void main(List<String> args) async {
         lineByLine: lineByLine, numbered: numbered, showNotes: showNotes);
     if (n < count - 1) print('');
   }
+}
+
+Future<void> runBatchExport(
+    Sandbox sandbox, String format, bool lineByLine, bool numbered,
+    bool showNotes, bool noDownload, String customDir, bool toTerminal, int numBatches) async {
+  final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+  final baseDir = customDir.isEmpty ? 'out' : customDir;
+  final batchRoot = p.join(baseDir, 'export_$timestamp');
+
+  await Directory(batchRoot).create(recursive: true);
+  stderr.writeln('Batch export started. Target: $batchRoot');
+
+  var bible = Bible(sandbox.biblePath);
+  if (!bible.isLoaded && !noDownload) {
+    stderr.writeln('Error: KJV Bible not found. Cannot perform batch export without text.');
+    return;
+  }
+
+  for (var b = 1; b <= numBatches; b++) {
+    final passage = selectPassage(bible, sandbox);
+    if (passage.isEmpty) continue;
+
+    // Build Title using only available Verse fields: book, chapter, verse
+    String title = "";
+    final v = passage[0];
+    title = '${v.book} ${v.chapter}:${v.verse}';
+
+    final body = formatPassage(passage,
+        lineByLine: lineByLine, numbered: numbered, showNotes: showNotes);
+    
+    final fileContent = "TITLE: $title\n\n$body";
+
+    if (toTerminal) {
+      print(fileContent);
+    } else {
+      final batchFile = File(p.join(batchRoot, 'passage_$b.txt'));
+      await batchFile.writeAsString(fileContent);
+    }
+  }
+
+  stderr.writeln('Batch export completed: $batchRoot');
 }
 
 Future<List<Verse>> lookupRef(String refStr, Sandbox sandbox) async {
@@ -155,6 +217,12 @@ Options:
   --list-curated       List curated passages
   --no-download        Skip KJV download
   -h, --help           Show this help
+
+Batch Export:
+  --batchexport         Enable batch export mode. Creates timestamped folder with 'passage_X.txt' files (TITLE \n\n BODY).
+  --export-dir PATH     Target directory for exports (default: 'out')
+  --output-terminal     Display output to terminal (true/false)
+  --batch-size NUM      Total number of batches to run (default: 1)
 
 Display modes:
   (no flags)    Wrapped text, verses run together, notes stripped
