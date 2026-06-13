@@ -1,0 +1,9 @@
+{
+  "bible": "KJV",
+  "curated_weight": 1,
+  "max_verses": 3,
+  "line_by_line": false,
+  "numbered": true,
+  "show_notes": false,
+  "port": 4281
+}

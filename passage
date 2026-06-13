@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -e
+PATH="$HOME/.linuxbrew/bin:$PATH"
+cd "$(dirname "$0")" && exec dart run bin/passage.dart "$@"

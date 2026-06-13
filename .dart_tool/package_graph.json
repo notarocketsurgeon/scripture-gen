@@ -1,0 +1,14 @@
+{
+  "roots": [
+    "passage_of_the_day"
+  ],
+  "packages": [
+    {
+      "name": "passage_of_the_day",
+      "version": "0.1.0",
+      "dependencies": [],
+      "devDependencies": []
+    }
+  ],
+  "configVersion": 1
+}

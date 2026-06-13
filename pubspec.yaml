@@ -1,0 +1,5 @@
+name: passage_of_the_day
+version: 0.1.0
+description: Passage of the Day - configurable Scripture CLI
+environment:
+  sdk: '>=3.0.0 <4.0.0'
